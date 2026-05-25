@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harita Ülke Bulma | PNG Harita</title>
+  <style>
+    :root { --bg: #050a14; --blue: #00f2ff; --panel: rgba(10,20,40,0.9); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: system-ui, sans-serif; 
+      background: var(--bg); 
+      color: #e0e8f5; 
+      min-height: 100vh; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      padding: 20px;
+      background-image: radial-gradient(#1a2a5a 1px, transparent 1px); 
+      background-size: 40px 40px; 
+    }
+    .container { 
+      background: var(--panel); 
+      padding: 20px; 
+      border-radius: 16px; 
+      border: 1px solid var(--blue); 
+      max-width: 900px; 
+      width: 100%; 
+      text-align: center; 
+      box-shadow: 0 0 20px rgba(0,242,255,0.2); 
+    }
+    h1 { color: var(--blue); margin-bottom: 10px; }
+    .top-bar { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 15px; 
+      flex-wrap: wrap; 
+      gap: 10px; 
+    }
+    .score { background: #0f172a; padding: 8px 12px; border-radius: 6px; }
+    select, button { 
+      background: #1a253a; 
+      color: #fff; 
+      border: 1px solid var(--blue); 
+      padding: 8px 12px; 
+      border-radius: 6px; 
+      cursor: pointer; 
+    }
+    button:hover { background: var(--blue); color: #000; }
+    .question { 
+      background: #152030; 
+      padding: 12px; 
+      border-radius: 8px; 
+      margin-bottom: 15px; 
+      font-size: 1.1rem; 
+    }
+    .map-container {
+      position: relative;
+      width: 100%;
+      margin: 0 auto;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid #1a2a5a;
+      box-shadow: 0 0 20px rgba(0,242,255,0.3);
+    }
+    .map-image {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: crosshair;
+      user-select: none;
+    }
+    .marker { 
+      position: absolute; 
+      width: 12px; 
+      height: 12px; 
+      border-radius: 50%; 
+      transform: translate(-50%,-50%); 
+      pointer-events: none; 
+      animation: pop 0.4s ease-out;
+      box-shadow: 0 0 10px currentColor;
+    }
+    .marker.right { 
+      background: var(--blue); 
+      color: var(--blue);
+      animation: correct 0.6s ease-out;
+    }
+    .marker.wrong { 
+      background: #ff3d71; 
+      color: #ff3d71;
+    }
+    @keyframes pop { 
+      0%{transform:translate(-50%,-50%) scale(0);opacity:0;} 
+      100%{transform:translate(-50%,-50%) scale(1.5);opacity:1;} 
+    }
+    @keyframes correct {
+      0%, 100% { transform: translate(-50%,-50%) scale(1); }
+      50% { transform: translate(-50%,-50%) scale(2); }
+    }
+    .guide { 
+      margin-top: 20px; 
+      background: #111827; 
+      padding: 15px; 
+      border-radius: 10px; 
+      font-size: 0.85rem; 
+      color: #8aa4c7; 
+      text-align: left; 
+      line-height: 1.5; 
+    }
+    .guide h3 { color: var(--blue); margin-bottom: 5px; }
+    a { color: var(--blue); text-decoration: none; display: inline-block; margin-bottom: 15px; }
+    .msg { min-height: 24px; color: var(--blue); margin-top: 10px; font-weight: 500; }
+    .progress { 
+      height: 6px; 
+      background: #111827; 
+      border-radius: 3px; 
+      margin-bottom: 10px; 
+      overflow: hidden; 
+    }
+    .progress-fill { 
+      height: 100%; 
+      background: linear-gradient(90deg, var(--blue), #00a8ff); 
+      width: 0%; 
+      transition: 0.3s; 
+    }
+    .map-info {
+      font-size: 0.75rem;
+      color: #5a7096;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html">← Ana Menü</a>
+    <h1>🌍 HARİTA ÜLKE BULMA</h1>
+    <div class="top-bar">
+      <div>
+        <select id="diff">
+          <option value="easy">Basit (2.5° tolerans)</option>
+          <option value="medium" selected>Orta (1.8° tolerans)</option>
+          <option value="hard">Zor (1.0° tolerans)</option>
+        </select>
+        <button onclick="resetGame()">🔄 Yeni Oyun</button>
+      </div>
+      <div class="score">🏆 Puan: <span id="score">0</span> / <span id="total">0</span></div>
+    </div>
+    <div class="progress"><div class="progress-fill" id="prog"></div></div>
+    <div class="question" id="q">Harita yükleniyor...</div>
+    
+    <div class="map-container" id="mapContainer">
+      <!-- PNG HARITA BURAYA GELECEK -->
+      <!-- Aşağıdaki src'yi kendi PNG haritanızla değiştirin -->
+      <img 
+        src="world.svg" 
+        alt="Dünya Haritası" 
+        class="map-image"
+        id="mapImage"
+        crossorigin="anonymous"
+      >
+    </div>
+    <div class="map-info">📍 Equirectangular projeksiyon - Koordinatlar otomatik hesaplanır</div>
+    <div class="msg" id="msg"></div>
+    
+    <div class="guide">
+      <h3>📖 Oynama Rehberi</h3>
+      <p>• Sorulan başkentin ait olduğu ülkeyi haritada <b>tıklayın</b>.<br>
+         • Koordinatlar gerçek enlem/boylam sistemine göre hesaplanır.<br>
+         • <b>Basit:</b> 2.5° tolerans (geniş alan) + 10 ülke<br>
+         • <b>Orta:</b> 1.8° tolerans (normal) + 15 ülke<br>
+         • <b>Zor:</b> 1.0° tolerans (dar alan) + 20 ülke<br>
+         • Süre sınırsız. Doğru konuma mümkün olduğunca yakın tıklayın.</p>
+    </div>
+  </div>
+
+  <script>
+    // Gerçek enlem/boylam verileri (başkentler)
+    const countries = [
+      {c:'Türkiye',cap:'Ankara',lat:39.9334,lon:32.8597},
+      {c:'Fransa',cap:'Paris',lat:48.8566,lon:2.3522},
+      {c:'Almanya',cap:'Berlin',lat:52.5200,lon:13.4050},
+      {c:'İspanya',cap:'Madrid',lat:40.4168,lon:-3.7038},
+      {c:'İtalya',cap:'Roma',lat:41.9028,lon:12.4964},
+      {c:'İngiltere',cap:'Londra',lat:51.5074,lon:-0.1278},
+      {c:'Yunanistan',cap:'Atina',lat:37.9838,lon:23.7275},
+      {c:'Portekiz',cap:'Lizbon',lat:38.7223,lon:-9.1393},
+      {c:'Hollanda',cap:'Amsterdam',lat:52.3676,lon:4.9041},
+      {c:'Belçika',cap:'Brüksel',lat:50.8503,lon:4.3517},
+      {c:'ABD',cap:'Washington DC',lat:38.9072,lon:-77.0369},
+      {c:'Kanada',cap:'Ottawa',lat:45.4215,lon:-75.6972},
+      {c:'Meksika',cap:'Meksiko',lat:19.4326,lon:-99.1332},
+      {c:'Brezilya',cap:'Brasilia',lat:-15.8267,lon:-47.9218},
+      {c:'Arjantin',cap:'Buenos Aires',lat:-34.6037,lon:-58.3816},
+      {c:'Şili',cap:'Santiago',lat:-33.4489,lon:-70.6693},
+      {c:'Kolombiya',cap:'Bogota',lat:4.7110,lon:-74.0721},
+      {c:'Peru',cap:'Lima',lat:-12.0464,lon:-77.0428},
+      {c:'Japonya',cap:'Tokyo',lat:35.6762,lon:139.6503},
+      {c:'Çin',cap:'Pekin',lat:39.9042,lon:116.4074},
+      {c:'Hindistan',cap:'Yeni Delhi',lat:28.6139,lon:77.2090},
+      {c:'Güney Kore',cap:'Seul',lat:37.5665,lon:126.9780},
+      {c:'Tayland',cap:'Bangkok',lat:13.7563,lon:100.5018},
+      {c:'Vietnam',cap:'Hanoi',lat:21.0285,lon:105.8542},
+      {c:'Endonezya',cap:'Cakarta',lat:-6.2088,lon:106.8456},
+      {c:'Avustralya',cap:'Canberra',lat:-35.2809,lon:149.1300},
+      {c:'Yeni Zelanda',cap:'Wellington',lat:-41.2865,lon:174.7762},
+      {c:'Mısır',cap:'Kahire',lat:30.0444,lon:31.2357},
+      {c:'Güney Afrika',cap:'Pretoria',lat:-25.7479,lon:28.2293},
+      {c:'Nijerya',cap:'Abuja',lat:9.0765,lon:7.3986},
+      {c:'Kenya',cap:'Nairobi',lat:-1.2864,lon:36.8172},
+      {c:'Fas',cap:'Rabat',lat:34.0209,lon:-6.8416},
+      {c:'Suudi Arabistan',cap:'Riyad',lat:24.7136,lon:46.6753},
+      {c:'Birleşik Arap Emirlikleri',cap:'Abu Dabi',lat:24.4539,lon:54.3773},
+      {c:'İran',cap:'Tahran',lat:35.6892,lon:51.3890},
+      {c:'Irak',cap:'Bağdat',lat:33.3152,lon:44.3661},
+      {c:'İsrail',cap:'Kudüs',lat:31.7683,lon:35.2137},
+      {c:'Pakistan',cap:'İslamabad',lat:33.6844,lon:73.0479},
+      {c:'Rusya',cap:'Moskova',lat:55.7558,lon:37.6173},
+      {c:'Ukrayna',cap:'Kiev',lat:50.4501,lon:30.5234},
+      {c:'Polonya',cap:'Varşova',lat:52.2297,lon:21.0122},
+      {c:'Romanya',cap:'Bükreş',lat:44.4268,lon:26.1025},
+      {c:'Macaristan',cap:'Budapeşte',lat:47.4979,lon:19.0402},
+      {c:'Avusturya',cap:'Viyana',lat:48.2082,lon:16.3738},
+      {c:'İsviçre',cap:'Bern',lat:46.9481,lon:7.4474},
+      {c:'İsveç',cap:'Stokholm',lat:59.3293,lon:18.0686},
+      {c:'Norveç',cap:'Oslo',lat:59.9139,lon:10.7522},
+      {c:'Finlandiya',cap:'Helsinki',lat:60.1699,lon:24.9384},
+      {c:'Danimarka',cap:'Kopenhag',lat:55.6761,lon:12.5683},
+      {c:'Çek Cumhuriyeti',cap:'Prag',lat:50.0755,lon:14.4378}
+    ];
+
+    let current=[], idx=0, score=0, tolDegrees=1.8;
+    const diffEl=document.getElementById('diff');
+    const qEl=document.getElementById('q');
+    const msgEl=document.getElementById('msg');
+    const scoreEl=document.getElementById('score');
+    const totalEl=document.getElementById('total');
+    const mapContainer=document.getElementById('mapContainer');
+    const mapImage=document.getElementById('mapImage');
+    const progEl=document.getElementById('prog');
+
+    // Enlem/boylam'ı PNG harita üzerindeki piksel konumuna çevir
+    // Equirectangular projeksiyon: 
+    // x = (lon + 180) / 360 * width
+    // y = (90 - lat) / 180 * height
+    function latLonToPixel(lat, lon) {
+      const rect = mapImage.getBoundingClientRect();
+      const x = ((lon + 180) / 360) * rect.width;
+      const y = ((90 - lat) / 180) * rect.height;
+      return { x, y };
+    }
+
+    // Derece toleransını piksel toleransına çevir
+    function degreesToPixels(degrees) {
+      const rect = mapImage.getBoundingClientRect();
+      // Enlem için (dikey)
+      const pixLat = (degrees / 180) * rect.height;
+      // Boylam için (yatay) - ekvatorda maksimum
+      const pixLon = (degrees / 360) * rect.width;
+      return { lat: pixLat, lon: pixLon };
+    }
+
+    function init() {
+      // Zorluk seviyesine göre ayarlar
+      tolDegrees = diffEl.value==='easy' ? 2.5 : diffEl.value==='medium' ? 1.8 : 1.0;
+      const count = diffEl.value==='easy' ? 10 : diffEl.value==='medium' ? 15 : 20;
+      
+      // Rastgele ülke seç
+      current = [...countries].sort(()=>Math.random()-0.5).slice(0,count);
+      idx=0; 
+      score=0; 
+      scoreEl.textContent=0; 
+      totalEl.textContent=count; 
+      progEl.style.width='0%'; 
+      msgEl.textContent='';
+      
+      // Harita yüklendiğinde oyunu başlat
+      if(mapImage.complete) {
+        loadQ();
+      } else {
+        mapImage.onload = () => loadQ();
+      }
+    }
+
+    diffEl.addEventListener('change', init);
+
+    function loadQ() {
+      if(idx>=current.length) { 
+        msgEl.innerHTML = `🎉 <b>Tebrikler!</b> Oyun bitti. Skorunuz: ${score}/${current.length}`;
+        qEl.innerHTML = '✅ Tüm sorular tamamlandı!';
+        progEl.style.width='100%';
+        return; 
+      }
+      const t=current[idx];
+      const hint = diffEl.value==='hard' ? '' : `<br><small style="color:#5a7096">📍 ${t.c} ülkesinin başkenti</small>`;
+      qEl.innerHTML = `📍 <b>Başkent: ${t.cap}</b>${hint}`;
+      progEl.style.width=`${(idx/current.length)*100}%`;
+    }
+
+    function handleClick(e) {
+      if(idx>=current.length) return;
+      
+      const rect = mapImage.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      // Tıklanan konumu enlem/boylam'a çevir
+      const clickedLon = (clickX / rect.width) * 360 - 180;
+      const clickedLat = 90 - (clickY / rect.height) * 180;
+      
+      const target = current[idx];
+      
+      // Mesafe hesapla (basit Öklid mesafesi)
+      const distLat = Math.abs(clickedLat - target.lat);
+      const distLon = Math.abs(clickedLon - target.lon);
+      const distance = Math.sqrt(distLat*distLat + distLon*distLon);
+      
+      // İşaretçi oluştur
+      const mark = document.createElement('div');
+      mark.className = `marker ${distance <= tolDegrees ? 'right' : 'wrong'}`;
+      mark.style.left = clickX + 'px';
+      mark.style.top = clickY + 'px';
+      mapContainer.appendChild(mark);
+      
+      // 1 saniye sonra işareti kaldır
+      setTimeout(() => mark.remove(), 1000);
+      
+      if(distance <= tolDegrees) {
+        // Doğru!
+        score++; 
+        scoreEl.textContent = score;
+        msgEl.innerHTML = `✅ <b>Doğru!</b> ${target.c} - ${target.cap}`;
+        idx++; 
+        setTimeout(loadQ, 1200);
+      } else {
+        // Yanlış
+        const distText = distance.toFixed(2);
+        msgEl.innerHTML = `❌ <b>Yanlış!</b> Hata payı: ${distText}° (İzin verilen: ${tolDegrees}°)<br>
+                          <small style="color:#8aa4c7">Doğru: ${target.lat.toFixed(1)}°, ${target.lon.toFixed(1)}°</small>`;
+      }
+    }
+
+    function resetGame() { 
+      // Tüm işaretçileri temizle
+      document.querySelectorAll('.marker').forEach(m => m.remove());
+      init(); 
+    }
+
+    // Harita tıklama olayı
+    mapImage.addEventListener('click', handleClick);
+
+    // Sayfa yüklendiğinde başlat
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
