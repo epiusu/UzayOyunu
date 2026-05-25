@@ -32,9 +32,16 @@
     .map-viewport:active { cursor: grabbing; }
     .map-layer {
       position: absolute; top: 0; left: 0; transform-origin: 0 0;
-      transition: transform 0.1s ease-out; will-change: transform;
+      /* Geçiş efekti kaldırıldı, sürükleme anlık tepki versin diye */
+      will-change: transform;
     }
-    #mapImage { display: block; width: 5000px; height: 3425px; pointer-events: none; }
+    /* 🔹 GÜNCELLENDİ: Harita boyutları 7936x4176 olarak ayarlandı */
+    #mapImage { 
+      display: block; 
+      width: 7936px; 
+      height: 4176px; 
+      pointer-events: none; 
+    }
     .marker { 
       position: absolute; width: 12px; height: 12px; border-radius: 50%; 
       transform: translate(-50%,-50%); pointer-events: none; animation: pop 0.4s ease-out;
@@ -78,12 +85,13 @@
     
     <div class="map-viewport" id="mapViewport">
       <div class="map-layer" id="mapLayer">
-        <img src="https://raw.githubusercontent.com/epiusu/UzayOyunu/0db5cd98c8d60401f9aadab03d6b095037d27dd2/world.svg" id="mapImage" width="5000" height="3425" draggable="false" alt="Dünya Haritası">
+        <!-- 🔹 BURAYA KENDİ 7936x4176 HARİTA DOSYANIZI YAZIN -->
+        <img src="harita.png" id="mapImage" width="7936" height="4176" draggable="false" alt="Dünya Haritası">
       </div>
       <div class="zoom-controls">
         <button class="zoom-btn" onclick="zoomMap(1.2)">+</button>
         <button class="zoom-btn" onclick="zoomMap(0.8)">−</button>
-        <button class="zoom-btn" onclick="resetZoom()" style="font-size:0.8rem"></button>
+        <button class="zoom-btn" onclick="resetZoom()" style="font-size:0.8rem">⟲</button>
       </div>
     </div>
     <div class="map-hint">🖱️ Sürükle: Pan | Tekerlek: Zoom | Tıkla: Ülke Seç</div>
@@ -92,7 +100,7 @@
     <div class="guide">
       <h3>📖 Oynama Rehberi</h3>
       <p>• Sorulan başkentin ait olduğu ülkeyi haritada <b>tıklayın</b>.<br>
-         • Harita 5000x3425 piksel çözünürlüğündedir. Detayları görmek için <b>zoom yapın</b> ve sürükleyin.<br>
+         • Harita 7936x4176 piksel çözünürlüğündedir. Detayları görmek için <b>zoom yapın</b> ve sürükleyin.<br>
          • <b>Basit/Orta/Zor:</b> Tıklama toleransı daralır. İpucu sistemi otomatik devre dışı kalır.<br>
          • Süre sınırsız. Konum hafızanızı kullanın.</p>
     </div>
@@ -125,12 +133,12 @@
     const mapViewport=document.getElementById('mapViewport'), mapLayer=document.getElementById('mapLayer');
     const progEl=document.getElementById('prog');
 
-    // Harita boyutları
-    const IMG_W = 5000, IMG_H = 3425;
+    // 🔹 GÜNCELLENDİ: Harita boyutları 7936x4176
+    const IMG_W = 7936, IMG_H = 4176;
 
     // Zoom & Pan State
     let scale = 1, panX = 0, panY = 0;
-    const minScale = 0.4, maxScale = 4;
+    const minScale = 0.1, maxScale = 5; // Geniş aralık
     let isDragging = false, dragStartX = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
 
     function updateTransform() {
@@ -139,7 +147,6 @@
 
     function zoomMap(factor) {
       const newScale = Math.min(maxScale, Math.max(minScale, scale * factor));
-      // Zoom'u merkeze doğru uygula
       const vpRect = mapViewport.getBoundingClientRect();
       const cx = vpRect.width / 2, cy = vpRect.height / 2;
       panX = cx - (cx - panX) * (newScale / scale);
@@ -149,7 +156,6 @@
     }
 
     function resetZoom() {
-      scale = 1; panX = 0; panY = 0;
       fitMapToScreen();
       updateTransform();
     }
@@ -181,8 +187,9 @@
       if (!isDragging) return;
       isDragging = false;
       mapViewport.style.cursor = 'grab';
-      // Tıklama mı sürükleme mi kontrol et
-      if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) < 6) {
+      
+      // 🔹 GÜNCELLENDİ: Yanlış tıklamayı önlemek için eşik 15 piksele çıkarıldı
+      if (Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY) < 15) {
         handleMapClick(e);
       }
     });
@@ -194,7 +201,7 @@
       zoomMap(delta);
     }, { passive: false });
 
-    // Touch Support (Basit Pan & Pinch)
+    // Touch Support
     let lastTouchDist = 0;
     mapViewport.addEventListener('touchstart', e => {
       if (e.touches.length === 1) {
@@ -221,7 +228,7 @@
     }, { passive: false });
 
     mapViewport.addEventListener('touchend', e => {
-      if (e.changedTouches.length === 1 && Math.hypot(e.changedTouches[0].clientX - dragStartX, e.changedTouches[0].clientY - dragStartY) < 10) {
+      if (e.changedTouches.length === 1 && Math.hypot(e.changedTouches[0].clientX - dragStartX, e.changedTouches[0].clientY - dragStartY) < 15) {
         handleMapClick({ clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY });
       }
       isDragging = false;
@@ -232,14 +239,12 @@
       const rect = mapViewport.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
-      // Transform'u tersine çevir
       const imgX = (x - panX) / scale;
       const imgY = (y - panY) / scale;
       return { x: imgX, y: imgY };
     }
 
     function latLonToPixel(lat, lon) {
-      // Equirectangular Projeksiyon
       const x = ((lon + 180) / 360) * IMG_W;
       const y = ((90 - lat) / 180) * IMG_H;
       return { x, y };
@@ -257,13 +262,13 @@
 
     function loadQ() {
       if(idx>=current.length) { 
-        msgEl.innerHTML = ` <b>Tebrikler!</b> Oyun bitti. Skorunuz: ${score}/${current.length}`;
+        msgEl.innerHTML = `🎉 <b>Tebrikler!</b> Oyun bitti. Skorunuz: ${score}/${current.length}`;
         qEl.innerHTML = '✅ Tüm sorular tamamlandı!';
         progEl.style.width='100%';
         return; 
       }
       const t=current[idx];
-      const hint = diffEl.value==='hard' ? '' : `<br><small style="color:#5a7096"> ${t.c} ülkesinin başkenti</small>`;
+      const hint = diffEl.value==='hard' ? '' : `<br><small style="color:#5a7096">📍 ${t.c} ülkesinin başkenti</small>`;
       qEl.innerHTML = `📍 <b>Başkent: ${t.cap}</b>${hint}`;
       progEl.style.width=`${(idx/current.length)*100}%`;
     }
@@ -274,11 +279,10 @@
       const target = current[idx];
       const targetPx = latLonToPixel(target.lat, target.lon);
       
-      // Toleransı piksel cinsinden hesapla (360 derece = 5000px)
+      // Toleransı piksel cinsinden hesapla (360 derece = 7936px)
       const tolPx = tolDegrees * (IMG_W / 360);
       const dist = Math.hypot(coords.x - targetPx.x, coords.y - targetPx.y);
       
-      // İşaretçi oluştur (Layer içine ekleyerek zoom/pan ile hareket etsin)
       const mark = document.createElement('div');
       mark.className = `marker ${dist <= tolPx ? 'right' : 'wrong'}`;
       mark.style.left = targetPx.x + 'px';
