@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Harita Ülke Bulma | Uzay Oyunları</title>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-panel: #16213e;
+            --bg-accent: #0f3460;
+            --text-main: #e94560;
+            --text-light: #ffffff;
+            --gold: #ffd700;
+            --success: #00ff88;
+            --error: #ff4d4d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        
+        body { 
+            background: var(--bg-dark); 
+            color: var(--text-light); 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+
+        header { 
+            background: var(--bg-panel); 
+            padding: 10px 15px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid var(--bg-accent);
+            flex-shrink: 0;
+        }
+        .nav-link { color: var(--text-main); text-decoration: none; font-weight: bold; }
+        h1 { font-size: 1.1rem; color: var(--text-main); text-align: center; margin: 0 10px; }
+
+        .stats-bar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 6px 15px; 
+            background: var(--bg-accent); 
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+        .score { color: var(--gold); font-weight: bold; }
+        .target-info { color: #00ffcc; font-weight: bold; font-size: 1rem; }
+
+        .controls { 
+            padding: 6px 10px; 
+            display: flex; 
+            gap: 6px; 
+            justify-content: center; 
+            background: var(--bg-panel); 
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        button { 
+            padding: 6px 12px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            color: #fff;
+        }
+        .btn-diff { background: #533483; }
+        .btn-diff.active { background: var(--text-main); box-shadow: 0 0 5px var(--text-main); }
+        .btn-new { background: #00b4d8; color: #000; }
+
+        /* 🌍 HARİTA ALANI */
+        #game-area {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #111;
+            position: relative;
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        /* Harita Kapsayıcısı - Oran Koruma */
+        #map-wrapper {
+            position: relative;
+            max-width: 100%;
+            max-height: 100%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.7);
+            border: 2px solid var(--bg-accent);
+            line-height: 0; /* Alt boşlukları önler */
+        }
+
+        #map-image {
+            display: block;
+            max-width: 100%;
+            max-height: 100%; /* Ekran yüksekliğine göre sığdır */
+            height: auto;
+            width: auto;
+        }
+
+        /* Tıklama Katmanı (Görünmez) */
+        #click-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            cursor: crosshair;
+        }
+
+        #feedback-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            text-align: center;
+            white-space: nowrap;
+        }
+        #feedback-msg.show { opacity: 1; }
+        #feedback-msg.success { color: #00ff88; border: 2px solid #00ff88; }
+        #feedback-msg.error { color: #ff4d4d; border: 2px solid #ff4d4d; }
+
+        .help-section { 
+            padding: 6px 10px; 
+            background: var(--bg-panel); 
+            font-size: 0.75rem; 
+            color: #a0a0a0;
+            text-align: center;
+            border-top: 1px solid var(--bg-accent);
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 600px) {
+            header { padding: 5px 10px; }
+            h1 { font-size: 0.9rem; }
+            .controls button { font-size: 0.7rem; padding: 5px 8px; }
+            #game-area { padding: 5px; }
+            #feedback-msg { font-size: 1rem; padding: 10px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="index.html" class="nav-link">← Menü</a>
+        <h1>🌍 ÜLKE BULMA</h1>
+        <div style="width: 60px;"></div>
+    </header>
+
+    <div class="stats-bar">
+        <span class="score">🏆 <span id="score">0</span> / <span id="total">0</span></span>
+        <span class="target-info" id="target-display">📍 ...</span>
+    </div>
+
+    <div class="controls">
+        <button class="btn-diff active" onclick="setDifficulty('easy')">Kolay</button>
+        <button class="btn-diff" onclick="setDifficulty('medium')">Orta</button>
+        <button class="btn-diff" onclick="setDifficulty('hard')">Zor</button>
+        <button class="btn-new" onclick="startNewGame()">🔄 Yeni Oyun</button>
+    </div>
+
+    <div id="game-area">
+        <div id="map-wrapper">
+            <!-- 📌 Harita Görseli Buraya Eklendi -->
+            <img id="map-image" src="harita.png" alt="Dünya Haritası" draggable="false">
+            <div id="click-layer"></div>
+            <div id="feedback-msg"></div>
+        </div>
+    </div>
+
+    <div class="help-section">
+        📖 <strong>Nasıl Oynanır?</strong> Ekrandaki başkenti bulun ve haritada o ülkeye tıklayın.
+    </div>
+
+    <script>
+        // 🌍 Ülke Verileri (X ve Y yüzde olarak girilmiştir. 0,0 = Sol Üst Köşe)
+        // Bu koordinatlar standart bir dünya haritası için tahminidir.
+        // Kendi haritanız için Konsol (F12) üzerinden "Debug Modu"nu kullanın.
+        const countries = [
+            { id: 'tr', name: 'Türkiye', capital: 'Ankara', x: 55, y: 42 },
+            { id: 'fr', name: 'Fransa', capital: 'Paris', x: 47, y: 32 },
+            { id: 'de', name: 'Almanya', capital: 'Berlin', x: 51, y: 30 },
+            { id: 'it', name: 'İtalya', capital: 'Roma', x: 51, y: 37 },
+            { id: 'es', name: 'İspanya', capital: 'Madrid', x: 44, y: 38 },
+            { id: 'uk', name: 'İngiltere', capital: 'Londra', x: 46, y: 27 },
+            { id: 'us', name: 'Amerika (ABD)', capital: 'Washington', x: 18, y: 38 },
+            { id: 'br', name: 'Brezilya', capital: 'Brasilia', x: 28, y: 65 },
+            { id: 'ru', name: 'Rusya', capital: 'Moskova', x: 65, y: 22 },
+            { id: 'cn', name: 'Çin', capital: 'Pekin', x: 78, y: 38 },
+            { id: 'jp', name: 'Japonya', capital: 'Tokyo', x: 86, y: 38 },
+            { id: 'in', name: 'Hindistan', capital: 'Yeni Delhi', x: 68, y: 45 },
+            { id: 'au', name: 'Avustralya', capital: 'Canberra', x: 82, y: 75 },
+            { id: 'eg', name: 'Mısır', capital: 'Kahire', x: 56, y: 48 },
+            { id: 'za', name: 'Güney Afrika', capital: 'Pretoria', x: 55, y: 75 },
+            { id: 'sa', name: 'Suudi Arabistan', capital: 'Riyad', x: 60, y: 45 },
+            { id: 'ar', name: 'Arjantin', capital: 'Buenos Aires', x: 26, y: 80 },
+            { id: 'mx', name: 'Meksika', capital: 'Meksiko', x: 15, y: 45 },
+            { id: 'ca', name: 'Kanada', capital: 'Ottawa', x: 18, y: 22 },
+            { id: 'ir', name: 'İran', capital: 'Tahran', x: 62, y: 40 },
+            { id: 'pk', name: 'Pakistan', capital: 'İslamabad', x: 65, y: 43 },
+            { id: 'id', name: 'Endonezya', capital: 'Cakarta', x: 80, y: 55 },
+            { id: 'ng', name: 'Nijerya', capital: 'Abuja', x: 48, y: 55 },
+            { id: 'ke', name: 'Kenya', capital: 'Nairobi', x: 62, y: 60 },
+            { id: 'se', name: 'İsveç', capital: 'Stokholm', x: 51, y: 20 },
+            { id: 'no', name: 'Norveç', capital: 'Oslo', x: 49, y: 20 },
+            { id: 'pl', name: 'Polonya', capital: 'Varşova', x: 54, y: 29 },
+            { id: 'ua', name: 'Ukrayna', capital: 'Kiev', x: 57, y: 30 },
+            { id: 'gr', name: 'Yunanistan', capital: 'Atina', x: 54, y: 40 },
+            { id: 'th', name: 'Tayland', capital: 'Bangkok', x: 74, y: 48 }
+        ];
+
+        let score = 0;
+        let total = 0;
+        let currentTarget = null;
+        let difficulty = 'easy';
+
+        // UI Güncelleme
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('total').textContent = total;
+            if (currentTarget) {
+                document.getElementById('target-display').textContent = `📍 Başkent: ${currentTarget.capital} (${currentTarget.name})`;
+            }
+        }
+
+        // Mesaj Göster
+        function showMessage(msg, type) {
+            const el = document.getElementById('feedback-msg');
+            el.textContent = msg;
+            el.className = `show ${type}`; // success veya error
+            setTimeout(() => el.className = '', 1500);
+        }
+
+        // Zorluk Ayarla
+        function setDifficulty(level) {
+            difficulty = level;
+            document.querySelectorAll('.btn-diff').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            startNewGame();
+        }
+
+        // Yeni Oyun
+        function startNewGame() {
+            score = 0;
+            total = 0;
+            pickNext();
+        }
+
+        // Sıradaki Ülke
+        function pickNext() {
+            currentTarget = countries[Math.floor(Math.random() * countries.length)];
+            total++;
+            updateUI();
+        }
+
+        // 📍 Koordinat Hesaplama (Konsolda Görüntüleme için)
+        const mapWrapper = document.getElementById('map-wrapper');
+        const clickLayer = document.getElementById('click-layer');
+
+        clickLayer.addEventListener('click', function(e) {
+            // Tıklanan noktanın resme göre yüzdesini hesapla
+            const rect = mapWrapper.getBoundingClientRect();
+            const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+            const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+
+            // --- DEBUG MODU ---
+            // Eğer konsola (F12) bakıyorsanız, tıkladığınız ülkenin koordinatını gösterir
+            console.log(`📍 Tıklanan: X: ${xPercent.toFixed(1)}, Y: ${yPercent.toFixed(1)}`);
+            
+            if (!currentTarget) return;
+
+            const dx = xPercent - currentTarget.x;
+            const dy = yPercent - currentTarget.y;
+            const distance = Math.sqrt(dx*dx + dy*dy); // Öklid mesafesi
+
+            // Tolerans (Zorluğa göre değişir)
+            let tolerance = 8; // Kolay
+            if (difficulty === 'medium') tolerance = 5;
+            if (difficulty === 'hard') tolerance = 2.5;
+
+            if (distance < tolerance) {
+                score++;
+                showMessage(`✅ Doğru! Burası ${currentTarget.name}`, 'success');
+                setTimeout(pickNext, 1000);
+            } else {
+                showMessage(`❌ Yanlış! ${currentTarget.name} ülkesini bulmalısın.`, 'error');
+            }
+            updateUI();
+        });
+
+        // Başlangıç
+        startNewGame();
+    </script>
+</body>
+</html>
